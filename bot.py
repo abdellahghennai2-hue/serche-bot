@@ -2,6 +2,7 @@ import os
 import re
 import html
 import logging
+import asyncio
 from io import BytesIO
 from typing import Optional
 
@@ -255,8 +256,15 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
     logger.info("Bot is running...")
+    # Python 3.14 لا ينشئ event loop تلقائياً في MainThread.
+    # إنشاء الحلقة هنا يمنع خطأ get_event_loop في Render.
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
     app.run_polling()
 
 
 if __name__ == "__main__":
     main()
+
