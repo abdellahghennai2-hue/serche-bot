@@ -17,6 +17,11 @@ load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 BOT_USERNAME = os.getenv("BOT_USERNAME", "@AliPriceHunterBot").strip()
+CHANNEL_NAME = os.getenv("CHANNEL_NAME", "قناة العروض").strip()
+CHANNEL_URL = os.getenv(
+    "CHANNEL_URL",
+    "https://t.me/HunterAliExpressDZ",
+).strip()
 
 try:
     OWNER_CHAT_ID = int(os.getenv("OWNER_CHAT_ID", "0").strip())
@@ -158,6 +163,8 @@ def caption(product: dict, url: str) -> str:
     visible_url = html.escape(url)
     link_url = html.escape(url, quote=True)
     bot = html.escape(BOT_USERNAME)
+    channel_name = html.escape(CHANNEL_NAME)
+    channel_url = html.escape(CHANNEL_URL, quote=True)
 
     # السعر والقسائم حقول يملؤها المستخدم يدوياً بعد نسخ النص.
     return f"""✅ {title}
@@ -173,6 +180,9 @@ def caption(product: dict, url: str) -> str:
 
 🛒 <b>رابط الشراء:</b>
 <a href="{link_url}">{visible_url}</a>
+
+📢 <b>{channel_name}:</b>
+<a href="{channel_url}">{channel_url}</a>
 
 🤖 <b>البوت:</b> {bot}"""
 
@@ -267,4 +277,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
 
