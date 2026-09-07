@@ -2,10 +2,7 @@ import os
 import re
 import html
 import logging
-import asyncio
 from io import BytesIO
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Thread
 from typing import Optional
 
 import requests
@@ -189,27 +186,6 @@ def caption(product: dict, url: str) -> str:
     🤖 <b>البوت:</b> {bot}"""
 
 
-class HealthHandler(BaseHTTPRequestHandler):
-    """نقطة فحص بسيطة حتى تتعرف خدمة Render على المنفذ المفتوح."""
-
-    def do_GET(self) -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(b"Bot is running")
-
-    def log_message(self, format: str, *args: object) -> None:
-        # منع ظهور طلبات الفحص في السجل كل مرة.
-        return
-
-
-def start_health_server() -> None:
-    port = int(os.getenv("PORT", "10000"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
-    logger.info("Health server listening on port %s", port)
-    server.serve_forever()
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat or update.effective_chat.id != OWNER_CHAT_ID:
         return
@@ -288,22 +264,26 @@ def main() -> None:
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
-    # Web Service المجاني في Render يتطلب منفذاً مفتوحاً.
-    # الخادم يعمل في مسار منفصل بينما يستمر البوت باستخدام polling.
-    Thread(target=start_health_server, daemon=True).start()
+    port = int(os.getenv("PORT", "10000"))
+    render_url = os.getenv(
+        "RENDER_EXTERNAL_URL",
+        "https://serche-bot-1.onrender.com",
+    ).rstrip("/")
+    webhook_path = "telegram-webhook"
 
-    logger.info("Bot is running...")
-    # Python 3.14 لا ينشئ event loop تلقائياً في MainThread.
-    # إنشاء الحلقة هنا يمنع خطأ get_event_loop في Render.
-    try:
-        asyncio.get_event_loop()
-    except RuntimeError:
-        asyncio.set_event_loop(asyncio.new_event_loop())
-    app.run_polling()
+    logger.info("Bot is running in webhook mode on port %s", port)
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=webhook_path,
+        webhook_url=f"{render_url}/{webhook_path}",
+        drop_pending_updates=True,
+    )
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
