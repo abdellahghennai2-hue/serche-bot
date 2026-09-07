@@ -2,6 +2,7 @@ import os
 import re
 import html
 import logging
+import asyncio
 from io import BytesIO
 from typing import Optional
 
@@ -270,6 +271,13 @@ def main() -> None:
         "https://serche-bot-1.onrender.com",
     ).rstrip("/")
     webhook_path = "telegram-webhook"
+
+    # Python 3.14 لا ينشئ event loop تلقائيًا في MainThread.
+    # run_webhook يحتاج إلى حلقة موجودة قبل بدء الخدمة.
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
 
     logger.info("Bot is running in webhook mode on port %s", port)
     app.run_webhook(
