@@ -4,6 +4,8 @@ import html
 import logging
 import asyncio
 from io import BytesIO
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from typing import Optional
 
 import requests
@@ -184,7 +186,28 @@ def caption(product: dict, url: str) -> str:
 📢 <b>{channel_name}:</b>
 <a href="{channel_url}">{channel_url}</a>
 
-🤖 <b>البوت:</b> {bot}"""
+    🤖 <b>البوت:</b> {bot}"""
+
+
+class HealthHandler(BaseHTTPRequestHandler):
+    """نقطة فحص بسيطة حتى تتعرف خدمة Render على المنفذ المفتوح."""
+
+    def do_GET(self) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+    def log_message(self, format: str, *args: object) -> None:
+        # منع ظهور طلبات الفحص في السجل كل مرة.
+        return
+
+
+def start_health_server() -> None:
+    port = int(os.getenv("PORT", "10000"))
+    server = ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
+    logger.info("Health server listening on port %s", port)
+    server.serve_forever()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -264,6 +287,10 @@ def main() -> None:
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+
+    # Web Service المجاني في Render يتطلب منفذاً مفتوحاً.
+    # الخادم يعمل في مسار منفصل بينما يستمر البوت باستخدام polling.
+    Thread(target=start_health_server, daemon=True).start()
 
     logger.info("Bot is running...")
     # Python 3.14 لا ينشئ event loop تلقائياً في MainThread.
